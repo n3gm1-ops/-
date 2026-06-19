@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة أخبار المحمودية الرسمية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+        }
+        .glass-card {
+            background: rgba(13, 71, 161, 0.04);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .admin-sidebar {
+            background-color: #0f1626;
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .ticker-wrap {
+            overflow: hidden;
+            background: linear-gradient(90deg, #b91c1c, #dc2626);
+        }
+        .ticker-move {
+            display: inline-block;
+            white-space: nowrap;
+            animation: ticker 30s linear infinite;
+        }
+        @keyframes ticker {
+            0% { transform: translate3d(100%, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
+        }
+        .custom-editor-btn {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #cbd5e1;
+            transition: all 0.2s;
+        }
+        .custom-editor-btn:hover {
+            background-color: #0d47a1;
+            color: white;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <div id="public-layout" class="flex-1 flex flex-col">
+        <div id="top-adv-area" class="w-full bg-[#070a10] py-2 text-center text-xs text-gray-500 border-b border-gray-800 hidden">
+            </div>
+
+        <header class="w-full bg-[#070a10] py-3 px-4 md:px-8 flex flex-wrap justify-between items-center gap-4 border-b border-gray-900">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-red-600 flex items-center justify-center shadow-lg">
+                    <i class="fas fa-broadcast-tower text-white text-lg"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-white" id="site-welcome-title">أهلاً وسهلاً بكم في المحمودية من هنا تعرف الأخبار</h2>
+                    <p class="text-[10px] text-gray-400" id="live-date-str">جاري تحميل التوقيت المحلي...</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3" id="public-social-links">
+                <a href="#" id="pub-link-fb" target="_blank" class="text-gray-400 hover:text-blue-500 text-lg transition"><i class="fab fa-facebook"></i></a>
+                <a href="#" id="pub-link-tt" target="_blank" class="text-gray-400 hover:text-white text-lg transition"><i class="fab fa-tiktok"></i></a>
+                <a href="#" id="pub-link-insta" target="_blank" class="text-gray-400 hover:text-pink-500 text-lg transition"><i class="fab fa-instagram"></i></a>
+                <button onclick="accessAdminDirectly()" class="mr-4 bg-[#0d47a1] text-white font-bold text-xs px-3 py-1.5 rounded hover:bg-blue-700 transition">
+                    <i class="fas fa-lock ml-1"></i> الإدارة
+                </button>
+            </div>
+        </header>
+
+        <div class="ticker-wrap w-full py-2 px-4 flex items-center shadow-md relative z-10 hidden" id="breaking-news-bar">
+            <span class="bg-black text-white text-xs font-black px-2.5 py-0.5 rounded ml-3 flex items-center gap-1 animate-pulse">
+                <i class="fas fa-circle text-red-500 text-[8px]"></i> عاجل
+            </span>
+            <div class="ticker-move text-white text-xs font-bold" id="ticker-text-space"></div>
+        </div>
+
+        <nav class="bg-[#090d16] border-b border-gray-800 sticky top-0 z-30">
+            <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
+                <div class="flex items-center gap-2 cursor-pointer" onclick="switchCategory('الرئيسية')">
+                    <span class="text-lg font-black text-white tracking-wide">أخبار <span class="text-red-500">المحمودية</span></span>
+                </div>
+                <div class="hidden md:flex items-center gap-1 text-xs font-bold">
+                    <button onclick="switchCategory('الرئيسية')" class="px-3 py-2 rounded text-white hover:bg-gray-800 transition">الرئيسية</button>
+                    <button onclick="switchCategory('حوادث')" class="px-3 py-2 rounded text-gray-300 hover:text-white hover:bg-gray-800 transition">الحوادث</button>
+                    <button onclick="switchCategory('رياضة')" class="px-3 py-2 rounded text-gray-300 hover:text-white hover:bg-gray-800 transition">الرياضة</button>
+                    <button onclick="switchCategory('تعليم')" class="px-3 py-2 rounded text-gray-300 hover:text-white hover:bg-gray-800 transition">التعليم</button>
+                    <button onclick="switchCategory('صحة')" class="px-3 py-2 rounded text-gray-300 hover:text-white hover:bg-gray-800 transition">الصحة</button>
+                    <button onclick="switchCategory('وظائف')" class="px-3 py-2 rounded text-gray-300 hover:text-white hover:bg-gray-800 transition">الوظائف</button>
+                    <button onclick="showPublicGallery()" class="px-3 py-2 rounded text-gray-300 hover:text-white hover:bg-gray-800 transition">المعرض الرقمي والبث</button>
+                </div>
+                <div class="relative">
+                    <input type="text" id="public-search" oninput="triggerPublicSearch()" placeholder="ابحث في الأرشيف..." class="bg-[#121824] text-xs text-white px-3 py-2 pl-8 rounded border border-gray-800 focus:outline-none focus:border-red-500 w-40 sm:w-48 transition">
+                    <i class="fas fa-search absolute left-2.5 top-2.5 text-gray-500 text-xs"></i>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full" id="public-main-view">
+            
+            <div id="view-home-group" class="public-view-section space-y-8">
+                <div id="main-feature-hero" class="w-full h-[380px] rounded-xl overflow-hidden relative shadow-2xl cursor-pointer border border-gray-800 hidden" onclick="">
+                    <img id="hero-image-src" src="" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                    <div class="absolute bottom-0 right-0 p-6 md:p-8 max-w-3xl space-y-2">
+                        <span id="hero-cat-tag" class="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded"></span>
+                        <h2 id="hero-title-text" class="text-xl md:text-3xl font-black text-white leading-tight"></h2>
+                        <p id="hero-summary-text" class="text-xs text-gray-300 line-clamp-2"></p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-2 space-y-4">
+                        <h3 class="text-md font-bold text-white border-r-4 border-red-600 pr-2" id="current-view-title">آخر المستجدات والأخبار المحلية</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="public-news-grid">
+                            </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div id="side-adv-area" class="w-full rounded-xl overflow-hidden hidden">
+                            </div>
+                        
+                        <div class="glass-card rounded-xl p-4 border border-gray-800">
+                            <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-3 pb-2 border-b border-gray-800 flex items-center gap-1.5">
+                                <i class="fas fa-fire text-orange-500"></i> الأكثر قراءة الآن
+                            </h4>
+                            <div class="space-y-3" id="popular-side-list">
+                                </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-article-details" class="public-view-section hidden max-w-3xl mx-auto space-y-6">
+                <button onclick="backToHomeGrid()" class="text-xs text-gray-400 hover:text-white bg-gray-900 border border-gray-800 px-3 py-1.5 rounded transition">
+                    <i class="fas fa-arrow-right ml-1"></i> العودة للرئيسية
+                </button>
+                <div id="full-article-payload" class="space-y-6"></div>
+            </div>
+
+            <div id="view-gallery-stream" class="public-view-section hidden space-y-8">
+                <div>
+                    <h3 class="text-md font-bold text-white border-r-4 border-red-600 pr-2 mb-4"><i class="fas fa-satellite-dish text-red-500 ml-1"></i> البث المباشر والتغطية الحية</h3>
+                    <div id="public-live-stream-box" class="grid grid-cols-1 max-w-2xl mx-auto"></div>
+                </div>
+                <div>
+                    <h3 class="text-md font-bold text-white border-r-4 border-blue-500 pr-2 mb-4"><i class="fab fa-youtube text-red-500 ml-1"></i> فيديوهات وتقارير مصورة</h3>
+                    <div id="public-videos-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="bg-[#060a12] border-t border-gray-900 py-6 text-center text-xs text-gray-500 mt-12">
+            <p>© 2026 جميع الحقوق محفوظة برمجياً ومنشوراً لـ <span class="text-white font-bold">منصة أخبار المحمودية الرسمية</span></p>
+        </footer>
+    </div>
+
+
+    <div id="admin-layout" class="w-full min-h-screen flex hidden relative z-50 bg-[#090d16]">
+        <aside class="w-64 admin-sidebar min-h-screen p-4 flex flex-col justify-between shrink-0">
+            <div class="space-y-6">
+                <div class="flex items-center gap-2 pb-4 border-b border-gray-800">
+                    <div class="w-8 h-8 rounded bg-[#0d47a1] flex items-center justify-center text-white"><i class="fas fa-crown"></i></div>
+                    <div>
+                        <h2 class="text-sm font-black text-white">لوحة القائد الأعلى</h2>
+                        <p class="text-[9px] text-green-400 flex items-center gap-1"><span class="w-1.5 h-1.5 bg-green-500 rounded-full inline-block animate-ping"></span> رتبة: الملك 👑</p>
+                    </div>
+                </div>
+                
+                <nav class="flex flex-col gap-1 text-xs font-medium">
+                    <button onclick="switchAdminTab('dashboard')" class="admin-nav-btn w-full text-right px-3 py-2.5 rounded text-white hover:bg-gray-800 flex items-center gap-2 transition"><i class="fas fa-home w-4 text-[#0d47a1]"></i> الرئيسية</button>
+                    <button onclick="switchAdminTab('news')" class="admin-nav-btn w-full text-right px-3 py-2.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 transition"><i class="fas fa-newspaper w-4 text-emerald-500"></i> إدارة الأخبار</button>
+                    <button onclick="switchAdminTab('images')" class="admin-nav-btn w-full text-right px-3 py-2.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 transition"><i class="fas fa-images w-4 text-blue-400"></i> إدارة الصور</button>
+                    <button onclick="switchAdminTab('videos')" class="admin-nav-btn w-full text-right px-3 py-2.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 transition"><i class="fas fa-video w-4 text-purple-400"></i> الفيديوهات</button>
+                    <button onclick="switchAdminTab('live')" class="admin-nav-btn w-full text-right px-3 py-2.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 transition"><i class="fas fa-satellite w-4 text-red-500"></i> البث المباشر</button>
+                    <button onclick="switchAdminTab('comments')" class="admin-nav-btn w-full text-right px-3 py-2.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 transition"><i class="fas fa-comments w-4 text-yellow-500"></i> التعليقات</button>
+                    <button onclick="switchAdminTab('users')" class="admin-nav-btn w-full text-right px-3 py-2.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 transition"><i class="fas fa-users w-4 text-cyan-400"></i> المستخدمين</button>
+                    <button onclick="switchAdminTab('ads')" class="admin-nav-btn w-full text-right px-3 py-2.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 transition"><i class="fas fa-ad w-4 text-orange-400"></i> الإعلانات</button>
+                    <button onclick="switchAdminTab('settings')" class="admin-nav-btn w-full text-right px-3 py-2.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 transition"><i class="fas fa-cog w-4 text-gray-400"></i> الإعدادات</button>
+                    <button onclick="switchAdminTab('logs')" class="admin-nav-btn w-full text-right px-3 py-2.5 rounded text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 transition"><i class="fas fa-history w-4 text-amber-600"></i> السجل (Logs)</button>
+                </nav>
+            </div>
+
+            <button onclick="exitAdminPortal()" class="w-full bg-gray-800 hover:bg-red-950 text-gray-300 hover:text-white font-bold text-xs py-2 rounded text-center transition">
+                <i class="fas fa-sign-out-alt ml-1"></i> مغادرة لوحة الملك
+            </button>
+        </aside>
+
+        <main class="flex-1 p-6 md:p-8 overflow-y-auto max-h-screen space-y-6">
+            
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-gray-800 pb-4">
+                <div>
+                    <h1 class="text-xl font-black text-white" id="admin-current-view-name">شاشة الإحصائيات الفورية</h1>
+                    <p class="text-[11px] text-gray-400 mt-0.5">مزامنة تامة وتخزين يدوي مباشر لقاعدة البيانات</p>
+                </div>
+                <div class="text-left">
+                    <span class="text-xs bg-gray-900 border border-gray-800 text-gray-300 px-3 py-1.5 rounded" id="admin-live-clock"></span>
+                </div>
+            </div>
+
+            <div id="admin-tab-dashboard" class="admin-content-section space-y-6">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="glass-card p-4 rounded-xl border border-gray-800/80 flex items-center justify-between">
+                        <div><p class="text-[11px] text-gray-400">إجمالي المقالات</p><h3 class="text-xl font-bold text-white mt-1" id="stat-total-news">0</h3></div>
+                        <div class="w-9 h-9 rounded bg-emerald-500/10 flex items-center justify-center text-emerald-500 text-sm"><i class="fas fa-newspaper"></i></div>
+                    </div>
+                    <div class="glass-card p-4 rounded-xl border border-gray-800/80 flex items-center justify-between">
+                        <div><p class="text-[11px] text-gray-400">زيارات ومشاهدات المنصة</p><h3 class="text-xl font-bold text-white mt-1" id="stat-total-views">0</h3></div>
+                        <div class="w-9 h-9 rounded bg-blue-500/10 flex items-center justify-center text-blue-400 text-sm"><i class="fas fa-eye"></i></div>
+                    </div>
+                    <div class="glass-card p-4 rounded-xl border border-gray-800/80 flex items-center justify-between">
+                        <div><p class="text-[11px] text-gray-400">إجمالي التفاعلات والتعليقات</p><h3 class="text-xl font-bold text-white mt-1" id="stat-total-comments">0</h3></div>
+                        <div class="w-9 h-9 rounded bg-yellow-500/10 flex items-center justify-center text-yellow-500 text-sm"><i class="fas fa-comments"></i></div>
+                    </div>
+                    <div class="glass-card p-4 rounded-xl border border-gray-800/80 flex items-center justify-between">
+                        <div><p class="text-[11px] text-gray-400">سجلات الحماية النشطة</p><h3 class="text-xl font-bold text-white mt-1" id="stat-total-logs">0</h3></div>
+                        <div class="w-9 h-9 rounded bg-amber-500/10 flex items-center justify-center text-amber-500 text-sm"><i class="fas fa-shield-alt"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="admin-tab-news" class="admin-content-section hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 glass-card p-5 rounded-xl border border-gray-800 space-y-4">
+                    <h3 class="text-xs font-bold text-white tracking-widest uppercase pb-2 border-b border-gray-800" id="form-article-action-title"><i class="fas fa-plus-circle text-emerald-500 ml-1"></i> نشر مادة إخبارية جديدة</h3>
+                    <input type="hidden" id="editing-article-id" value="">
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1">عنوان المادة الخبرية</label>
+                            <input type="text" id="inp-news-title" class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1">قسم المادة</label>
+                            <select id="inp-news-cat" class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none focus:border-emerald-500">
+                                <option value="حوادث">الحوادث</option>
+                                <option value="رياضة">الرياضة</option>
+                                <option value="تعليم">التعليم</option>
+                                <option value="صحة">الصحة</option>
+                                <option value="اقتصاد">الاقتصاد</option>
+                                <option value="وظائف">الوظائف</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1">رابط مباشر للصورة (أو عبر أدوات رفع الصور المجاورة)</label>
+                            <input type="text" id="inp-news-img" placeholder="https://i.ibb.co/..." class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1">جدولة وتوقيت النشر ⏰</label>
+                            <input type="datetime-local" id="inp-news-schedule" class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] text-gray-400 mb-1">محتوى وتفاصيل المقال بالكامل (محرر ذكي)</label>
+                        <div class="w-full bg-[#121824] border border-gray-800 rounded overflow-hidden">
+                            <div class="bg-gray-900/80 px-2 py-1.5 border-b border-gray-800 flex flex-wrap gap-1">
+                                <button onclick="injectShortcode('[اضغط هنا]')" class="custom-editor-btn"><i class="fas fa-link ml-0.5"></i> زر اضغط هنا</button>
+                                <button onclick="injectShortcode('[اقرأ إعلان]')" class="custom-editor-btn"><i class="fas fa-bullhorn ml-0.5"></i> زر اقرأ إعلان</button>
+                                <button onclick="injectShortcode('[اقرأ المزيد]')" class="custom-editor-btn"><i class="fas fa-plus ml-0.5"></i> زر اقرأ المزيد</button>
+                            </div>
+                            <textarea id="inp-news-body" rows="8" class="w-full bg-transparent p-3 text-xs text-white focus:outline-none resize-y" placeholder="اكتب نص وتفاصيل المادة الإخبارية هنا..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-gray-900/30 p-3 rounded border border-gray-800/80 text-xs">
+                        <label class="flex items-center gap-1.5 text-gray-300 cursor-pointer">
+                            <input type="checkbox" id="inp-news-urgent" class="w-3.5 h-3.5 rounded bg-gray-800 border-gray-700"> تحويل إلى خبر عاجل
+                        </label>
+                        <label class="flex items-center gap-1.5 text-gray-300 cursor-pointer">
+                            <input type="checkbox" id="inp-news-hero" class="w-3.5 h-3.5 rounded bg-gray-800 border-gray-700"> تثبيت كخبر رئيسي بالصفحة
+                        </label>
+                    </div>
+
+                    <button onclick="commitNewsToDatabase()" id="btn-save-news" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded transition">
+                        حفظ ومزامنة فورية للمادة المنشورة
+                    </button>
+                </div>
+
+                <div class="glass-card p-4 rounded-xl border border-gray-800 space-y-3">
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider pb-1.5 border-b border-gray-800">أرشيف التعديل والحذف</h3>
+                    <div id="admin-articles-list" class="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+                        </div>
+                </div>
+            </div>
+
+            <div id="admin-tab-images" class="admin-content-section hidden space-y-4 max-w-xl">
+                <div class="glass-card p-5 rounded-xl border border-gray-800 space-y-4">
+                    <h3 class="text-xs font-bold text-white pb-2 border-b border-gray-800"><i class="fas fa-images text-blue-400 ml-1"></i> معالج الصور المباشر</h3>
+                    <p class="text-[11px] text-gray-400 leading-relaxed">يمكنك التوجه المباشر لحسابك على خادم الرفع <a href="https://ar.imgbb.com/" target="_blank" class="text-blue-400 underline">ImgBB</a> لرفع ملفات الصور الخاصة بك بشكل فوري، ثم نسخ الرابط المباشر للبلورة ولصقه في خانة الصورة أثناء صياغة المادة الإخبارية لتظهر فورياً للجمهور.</p>
+                </div>
+            </div>
+
+            <div id="admin-tab-videos" class="admin-content-section hidden space-y-4 max-w-xl">
+                <div class="glass-card p-5 rounded-xl border border-gray-800 space-y-4">
+                    <h3 class="text-xs font-bold text-white pb-2 border-b border-gray-800"><i class="fab fa-youtube text-red-500 ml-1"></i> إضافة وإدراج فيديو تقريري</h3>
+                    <div class="space-y-3">
+                        <input type="text" id="inp-vid-title" placeholder="عنوان التقرير المصور..." class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none">
+                        <input type="text" id="inp-vid-url" placeholder="رابط التضمين الـ Embed من يوتيوب..." class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none">
+                        <button onclick="commitVideoRecord()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-2 rounded transition">إدراج الفيديو للمعرض المفتوح</button>
+                    </div>
+                    <div id="admin-videos-shelf" class="space-y-2 mt-4 max-h-40 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <div id="admin-tab-live" class="admin-content-section hidden space-y-4 max-w-xl">
+                <div class="glass-card p-5 rounded-xl border border-gray-800 space-y-4">
+                    <h3 class="text-xs font-bold text-white pb-2 border-b border-gray-800"><i class="fas fa-satellite-dish text-red-500 ml-1"></i> تهيئة وتوجيه البث المباشر</h3>
+                    <div class="space-y-3">
+                        <label class="block text-[11px] text-gray-400">رابط تضمين قناة البث الحي (يوتيوب لايف أو خادم خارجي)</label>
+                        <input type="text" id="inp-live-embed-url" placeholder="ضع كود أو رابط iframe البث المباشر هنا..." class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none">
+                        <button onclick="commitLiveStreamStatus()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-2 rounded transition">تحديث وحفظ رابط البث الحي</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="admin-tab-comments" class="admin-content-section hidden space-y-4">
+                <div class="glass-card p-5 rounded-xl border border-gray-800 space-y-4">
+                    <h3 class="text-xs font-bold text-white pb-2 border-b border-gray-800">مراقبة التعليقات والموافقات</h3>
+                    <div id="admin-comments-management-shelf" class="space-y-2 max-h-96 overflow-y-auto text-xs">
+                        </div>
+                </div>
+            </div>
+
+            <div id="admin-tab-users" class="admin-content-section hidden space-y-4 max-w-lg">
+                <div class="glass-card p-5 rounded-xl border border-gray-800 space-y-3 text-xs">
+                    <h3 class="text-xs font-bold text-white pb-2 border-b border-gray-800">مصفوفة طاقم تحرير المنصة</h3>
+                    <div class="bg-gray-900/60 p-3 rounded border border-gray-800/80 flex items-center justify-between">
+                        <div><p class="font-bold text-white">الملك الحاكم 👑</p><p class="text-[10px] text-gray-400">الوصول الكامل لرابط التشفير السري الفريد</p></div>
+                        <span class="bg-red-900/40 text-red-400 px-2 py-0.5 rounded text-[10px]">مفعل دائم</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="admin-tab-ads" class="admin-content-section hidden space-y-4 max-w-xl">
+                <div class="glass-card p-5 rounded-xl border border-gray-800 space-y-4">
+                    <h3 class="text-xs font-bold text-white pb-2 border-b border-gray-800"><i class="fas fa-ad text-orange-400 ml-1"></i> وحدة الإعلانات الذكية</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1">إعلان أعلى الموقع (كود ترويجي أو رابط الصورة الإعلانية)</label>
+                            <input type="text" id="inp-ad-top" class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1">إعلان داخل الأخبار والعمود الجانبي (رابط صورة الإعلان)</label>
+                            <input type="text" id="inp-ad-side" class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none">
+                        </div>
+                        <button onclick="commitAdvertisingCampaigns()" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs py-2 rounded transition">حفظ وتفعيل الإعلانات فورياً</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="admin-tab-settings" class="admin-content-section hidden space-y-4 max-w-xl">
+                <div class="glass-card p-5 rounded-xl border border-gray-800 space-y-4">
+                    <h3 class="text-xs font-bold text-white pb-2 border-b border-gray-800"><i class="fas fa-sliders-h text-gray-400 ml-1"></i> إعدادات الهوية العامة وروابط السوشيال ميديا</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1">العبارة الترحيبية وشعار الموقع في الأعلى</label>
+                            <input type="text" id="inp-set-welcome" placeholder="أهلاً وسهلاً بكم في المحمودية من هنا تعرف الأخبار..." class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-[11px] text-gray-400 mb-1">رابط فيسبوك</label>
+                                <input type="text" id="inp-set-fb" class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-gray-400 mb-1">رابط تيك توك</label>
+                                <input type="text" id="inp-set-tt" class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-gray-400 mb-1">رابط إنستغرام</label>
+                                <input type="text" id="inp-set-insta" class="w-full bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none">
+                            </div>
+                        </div>
+                        <button onclick="commitPlatformConfigurationSettings()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2 rounded transition">حفظ وتعميم الإعدادات فورياً</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="admin-tab-logs" class="admin-content-section hidden space-y-4">
+                <div class="glass-card p-5 rounded-xl border border-gray-800 space-y-4">
+                    <h3 class="text-xs font-bold text-white pb-2 border-b border-gray-800"><i class="fas fa-shield-alt text-amber-500 ml-1"></i> سجل العمليات والحماية والأمان (Activity Logs)</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-xs text-gray-300">
+                            <thead>
+                                <tr class="border-b border-gray-800 text-gray-400">
+                                    <th class="pb-2">الإجراء المتخذ</th>
+                                    <th class="pb-2">رتبة الجلسة</th>
+                                    <th class="pb-2">التوقيت والتاريخ</th>
+                                    <th class="pb-2">عنوان الـ IP الافتراضي</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-activity-logs-table-body">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // تهيئة اتصال قاعدة بيانات Firebase بقاعدتك المحددة 100%
+        const firebaseConfig = { databaseURL: "https://mmmm-dcd92-default-rtdb.firebaseio.com/" };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.database();
+
+        let newsStore = {};
+        let selectedCategory = 'الرئيسية';
+        let isKingLoggedIn = false;
+
+        // إدارة الوقت والتوقيت الحي
+        function initializePlatformClock() {
+            setInterval(() => {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const dateString = now.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                
+                const liveDateStrEl = document.getElementById('live-date-str');
+                if(liveDateStrEl) liveDateStrEl.innerText = `${dateString} | ${timeString}`;
+                
+                const adminLiveClockEl = document.getElementById('admin-live-clock');
+                if(adminLiveClockEl) adminLiveClockEl.innerText = `التوقيت الإداري: ${timeString}`;
+            }, 1000);
+        }
+        initializePlatformClock();
+
+        // دخول لوحة الأدمن بكود الملك السري الفريد المباشر
+        function accessAdminDirectly() {
+            const secretToken = prompt("يرجى كتابة رمز الولوج السري المباشر للملك 👑:");
+            if (secretToken === '2009') {
+                isKingLoggedIn = true;
+                document.getElementById('public-layout').classList.add('hidden');
+                document.getElementById('admin-layout').classList.remove('hidden');
+                logSystemActivity("تم الولوج الآمن والناجح للوحة التحكم والمزامنة الحية للبيانات", "الملك 👑");
+                syncDashboardCounters();
+            } else if (secretToken !== null) {
+                alert("رمز الأمان المدخل غير صحيح! تم رصد محاولة الدخول الغريبة.");
+                logSystemActivity("محاولة ولوج فاشلة للوحة الإدارة برمز خاطئ", "مجهول 🛡️");
+            }
+        }
+
+        function exitAdminPortal() {
+            isKingLoggedIn = false;
+            document.getElementById('admin-layout').classList.add('hidden');
+            document.getElementById('public-layout').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function switchAdminTab(tabId) {
+            document.querySelectorAll('.admin-content-section').forEach(section => section.classList.add('hidden'));
+            document.getElementById(`admin-tab-${tabId}`).classList.remove('hidden');
+            
+            const viewNames = {
+                'dashboard': 'شاشة الإحصائيات الفورية', 'news': 'إدارة وتحرير الأخبار والمقالات',
+                'images': 'معالج رفع الصور المباشر', 'videos': 'معرض التقارير المصورة بالفيديو',
+                'live': 'إدارة البث المباشر المجدول', 'comments': 'مراجعة وتنظيم تعليقات الزوار',
+                'users': 'مصفوفة طاقم التحرير والصلاحيات', 'ads': 'إدارة المساحات الإعلانية',
+                'settings': 'إعدادات الهوية العامة والسوشيال ميديا', 'logs': 'سجل تتبع العمليات والحماية والأمان'
+            };
+            document.getElementById('admin-current-view-name').innerText = viewNames[tabId] || 'لوحة الإدارة';
+        }
+
+        function injectShortcode(shortcode) {
+            const txtarea = document.getElementById('inp-news-body');
+            const start = txtarea.selectionStart;
+            const end = txtarea.selectionEnd;
+            const text = txtarea.value;
+            txtarea.value = text.substring(0, start) + shortcode + text.substring(end);
+            txtarea.focus();
+        }
+
+        // تسجيل العمليات والسجلات الأمنية والـ IP
+        function logSystemActivity(action, role) {
+            const logId = db.ref().child('logs').push().key;
+            db.ref('logs/' + logId).set({
+                id: logId, action: action, role: role,
+                timestamp: Date.now(), ip: "196.128." + Math.floor(Math.random() * 254) + ".11"
+            });
+        }
+
+        // حفظ وصياغة مادة إخبارية مع جدولة النشر التلقائي
+        function commitNewsToDatabase() {
+            const title = document.getElementById('inp-news-title').value.trim();
+            const category = document.getElementById('inp-news-cat').value;
+            const img = document.getElementById('inp-news-img').value.trim();
+            const body = document.getElementById('inp-news-body').value.trim();
+            const isUrgent = document.getElementById('inp-news-urgent').checked;
+            const isHero = document.getElementById('inp-news-hero').checked;
+            const scheduleVal = document.getElementById('inp-news-schedule').value;
+            const existingId = document.getElementById('editing-article-id').value;
+
+            if (!title || !body) {
+                alert("يرجى ملء البيانات والعناوين الأساسية قبل الحفظ.");
+                return;
+            }
+
+            let finalTimestamp = Date.now();
+            if (scheduleVal) {
+                finalTimestamp = new Date(scheduleVal).getTime();
+            }
+
+            let articleId = existingId ? existingId : db.ref().child('news').push().key;
+            
+            const payload = {
+                id: articleId, title: title, category: category,
+                image: img || "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80",
+                content: body, urgent: isUrgent, hero: isHero, timestamp: finalTimestamp,
+                views: existingId ? (newsStore[existingId]?.views || 0) : 0
+            };
+
+            db.ref('news/' + articleId).set(payload).then(() => {
+                alert("تم الحفظ والمزامنة الفورية للمادة الإخبارية في قاعدة البيانات!");
+                logSystemActivity(`تم نشر/تعديل خبر بعنوان: ${title}`, "الملك 👑");
+                
+                // إعادة تهيئة الاستمارة
+                document.getElementById('inp-news-title').value = '';
+                document.getElementById('inp-news-img').value = '';
+                document.getElementById('inp-news-body').value = '';
+                document.getElementById('inp-news-schedule').value = '';
+                document.getElementById('inp-news-urgent').checked = false;
+                document.getElementById('inp-news-hero').checked = false;
+                document.getElementById('editing-article-id').value = '';
+                document.getElementById('form-article-action-title').innerHTML = `<i class="fas fa-plus-circle text-emerald-500 ml-1"></i> نشر مادة إخبارية جديدة`;
+                switchAdminTab('dashboard');
+            });
+        }
+
+        function triggerEditArticle(id) {
+            const news = newsStore[id];
+            if(!news) return;
+            document.getElementById('editing-article-id').value = news.id;
+            document.getElementById('inp-news-title').value = news.title;
+            document.getElementById('inp-news-cat').value = news.category;
+            document.getElementById('inp-news-img').value = news.image;
+            document.getElementById('inp-news-body').value = news.content;
+            document.getElementById('inp-news-urgent').checked = news.urgent || false;
+            document.getElementById('inp-news-hero').checked = news.hero || false;
+            
+            document.getElementById('form-article-action-title').innerHTML = `<i class="fas fa-edit text-yellow-500 ml-1"></i> تعديل الخبر الحالي: ${news.title}`;
+            alert("تم سحب البيانات للمحرر بنجاح، يمكنك التعديل والحفظ الآن.");
+        }
+
+        function triggerDeleteArticle(id) {
+            if(confirm("هل أنت متأكد تماماً من حذف هذا الخبر نهائياً من الأرشيف السحابي؟")) {
+                const title = newsStore[id]?.title || "غير معروف";
+                db.ref('news/' + id).remove().then(() => {
+                    logSystemActivity(`تم حذف خبر نهائياً بعنوان: ${title}`, "الملك 👑");
+                    alert("تم الحذف.");
+                });
+            }
+        }
+
+        function commitVideoRecord() {
+            const title = document.getElementById('inp-vid-title').value.trim();
+            const url = document.getElementById('inp-vid-url').value.trim();
+            if(!title || !url) return;
+
+            const id = db.ref().child('videos').push().key;
+            db.ref('videos/' + id).set({ id: id, title: title, url: url }).then(() => {
+                alert("تم إدراج مقطع الفيديو بنجاح.");
+                document.getElementById('inp-vid-title').value = '';
+                document.getElementById('inp-vid-url').value = '';
+            });
+        }
+
+        function triggerDeleteVideo(id) {
+            if(confirm("حذف الفيديو؟")) { db.ref('videos/' + id).remove(); }
+        }
+
+        function commitLiveStreamStatus() {
+            const url = document.getElementById('inp-live-embed-url').value.trim();
+            db.ref('livestream').set({ url: url }).then(() => { alert("تم تحديث وحفظ رابط البث الحي المباشر."); });
+        }
+
+        function commitAdvertisingCampaigns() {
+            const top = document.getElementById('inp-ad-top').value.trim();
+            const side = document.getElementById('inp-ad-side').value.trim();
+            db.ref('ads').set({ top: top, side: side }).then(() => { alert("تم تفعيل الإعلانات فورياً داخل المنصة."); });
+        }
+
+        function commitPlatformConfigurationSettings() {
+            const welcome = document.getElementById('inp-set-welcome').value.trim();
+            const fb = document.getElementById('inp-set-fb').value.trim();
+            const tt = document.getElementById('inp-set-tt').value.trim();
+            const insta = document.getElementById('inp-set-insta').value.trim();
+
+            db.ref('settings').set({ welcome: welcome, fb: fb, tt: tt, insta: insta }).then(() => {
+                alert("تم تحديث الهوية العامة للموقع بنجاح.");
+            });
+        }
+
+        function addPublicComment(newsId) {
+            const text = document.getElementById('inp-pub-comment').value.trim();
+            if(!text) return;
+            const cid = db.ref().child('comments').push().key;
+            db.ref('comments/' + cid).set({
+                id: cid, newsId: newsId, text: text, timestamp: Date.now()
+            }).then(() => {
+                document.getElementById('inp-pub-comment').value = '';
+                alert("تم إرسال تعليقك بنجاح ومزامنته بالخلفية.");
+                syncCommentsForArticle(newsId);
+            });
+        }
+
+        function triggerDeleteComment(id) {
+            if(confirm("حذف التعليق نهائياً؟")) { db.ref('comments/' + id).remove(); }
+        }
+
+        // جلب حزمة البيانات الشاملة من الفايربيس والمزامنة الحية 100%
+        db.ref('news').on('value', (snapshot) => {
+            newsStore = snapshot.val() || {};
+            renderPublicNewsPortal();
+            renderAdminArticlesShelf();
+            syncDashboardCounters();
+        });
+
+        db.ref('videos').on('value', (snapshot) => {
+            renderVideosShelf(snapshot.val() || {});
+        });
+
+        db.ref('livestream').on('value', (snapshot) => {
+            const live = snapshot.val() || {};
+            const box = document.getElementById('public-live-stream-box');
+            if(live.url) {
+                box.innerHTML = `<iframe class="w-full h-72 sm:h-96 rounded-xl border border-gray-800 shadow-xl" src="${live.url}" frameborder="0" allowfullscreen></iframe>`;
+            } else {
+                box.innerHTML = `<p class="text-xs text-gray-500 text-center py-8">لا يوجد بث مباشر مفعل حالياً من قبل الإدارة.</p>`;
+            }
+        });
+
+        db.ref('ads').on('value', (snapshot) => {
+            const ads = snapshot.val() || {};
+            const topArea = document.getElementById('top-adv-area');
+            const sideArea = document.getElementById('side-adv-area');
+            
+            if(ads.top) {
+                topArea.innerHTML = `<img src="${ads.top}" class="mx-auto max-h-16 rounded object-contain">`;
+                topArea.classList.remove('hidden');
+            } else { topArea.classList.add('hidden'); }
+
+            if(ads.side) {
+                sideArea.innerHTML = `<img src="${ads.side}" class="w-full rounded-xl object-cover border border-gray-800">`;
+                sideArea.classList.remove('hidden');
+            } else { sideArea.classList.add('hidden'); }
+        });
+
+        db.ref('settings').on('value', (snapshot) => {
+            const sets = snapshot.val() || {};
+            if(sets.welcome) document.getElementById('site-welcome-title').innerText = sets.welcome;
+            
+            document.getElementById('pub-link-fb').href = sets.fb || "#";
+            document.getElementById('pub-link-tt').href = sets.tt || "#";
+            document.getElementById('pub-link-insta').href = sets.insta || "#";
+        });
+
+        db.ref('comments').on('value', (snapshot) => {
+            const comments = snapshot.val() || {};
+            const cmShelf = document.getElementById('admin-comments-management-shelf');
+            cmShelf.innerHTML = '';
+            let count = 0;
+            for(let id in comments) {
+                count++;
+                cmShelf.innerHTML += `
+                    <div class="p-2.5 bg-gray-900 rounded border border-gray-800 flex items-center justify-between">
+                        <div><p class="text-gray-200">${comments[id].text}</p><p class="text-[9px] text-gray-500 mt-0.5">معرّف المقال: ${comments[id].newsId}</p></div>
+                        <button onclick="triggerDeleteComment('${id}')" class="text-red-500 hover:text-red-700 p-1"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                `;
+            }
+            document.getElementById('stat-total-comments').innerText = count;
+        });
+
+        db.ref('logs').on('value', (snapshot) => {
+            const logs = snapshot.val() || {};
+            const tbody = document.getElementById('admin-activity-logs-table-body');
+            tbody.innerHTML = '';
+            let logArray = Object.values(logs).sort((a,b) => b.timestamp - a.timestamp);
+            document.getElementById('stat-total-logs').innerText = logArray.length;
+            
+            logArray.slice(0, 30).forEach(log => {
+                const dStr = new Date(log.timestamp).toLocaleString('ar-EG');
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-900 hover:bg-gray-900/40">
+                        <td class="py-2 text-gray-200">${log.action}</td>
+                        <td><span class="bg-blue-950 text-blue-400 px-1.5 py-0.5 rounded text-[10px]">${log.role}</span></td>
+                        <td class="text-gray-400">${dStr}</td>
+                        <td class="text-gray-500 font-mono">${log.ip}</td>
+                    </tr>
+                `;
+            });
+        });
+
+        function syncDashboardCounters() {
+            const arr = Object.values(newsStore);
+            document.getElementById('stat-total-news').innerText = arr.length;
+            let totalViews = 0;
+            arr.forEach(n => totalViews += (n.views || 0));
+            document.getElementById('stat-total-views').innerText = totalViews;
+        }
+
+        // صب وعرض المقالات للجمهور بآلية فلترة وجدولة
+        function renderPublicNewsPortal() {
+            const grid = document.getElementById('public-news-grid');
+            const sidePopular = document.getElementById('popular-side-list');
+            const tickerTextSpace = document.getElementById('ticker-text-space');
+            const breakingBar = document.getElementById('breaking-news-bar');
+            
+            grid.innerHTML = ''; sidePopular.innerHTML = '';
+            
+            const now = Date.now();
+            // تصفية الأخبار المجدولة التي لم يأتي وقتها بعد
+            let allAvailableNews = Object.values(newsStore).filter(n => n.timestamp <= now);
+            allAvailableNews.sort((a,b) => b.timestamp - a.timestamp);
+
+            // إدارة شريط الأخبار العاجلة
+            let urgentTitles = allAvailableNews.filter(n => n.urgent).map(n => n.title);
+            if(urgentTitles.length > 0) {
+                tickerTextSpace.innerText = urgentTitles.join('   •   🔥   •   ');
+                breakingBar.classList.remove('hidden');
+            } else { breakingBar.classList.add('hidden'); }
+
+            // إدارة وتثبيت الخبر الرئيسي البارز الـ Hero
+            let heroArticle = allAvailableNews.find(n => n.hero);
+            if(!heroArticle && allAvailableNews.length > 0) heroArticle = allAvailableNews[0];
+            
+            const heroBox = document.getElementById('main-feature-hero');
+            if(heroArticle) {
+                document.getElementById('hero-image-src').src = heroArticle.image;
+                document.getElementById('hero-cat-tag').innerText = heroArticle.category;
+                document.getElementById('hero-title-text').innerText = heroArticle.title;
+                document.getElementById('hero-summary-text').innerHTML = parseShortcodesInText(heroArticle.content);
+                heroBox.setAttribute('onclick', `readFullArticlePublic('${heroArticle.id}')`);
+                heroBox.classList.remove('hidden');
+            } else { heroBox.classList.add('hidden'); }
+
+            // فلترة وتوزيع الشبكة بحسب القسم النشط
+            let filteredNews = selectedCategory === 'الرئيسية' ? allAvailableNews : allAvailableNews.filter(n => n.category === selectedCategory);
+            
+            if(filteredNews.length === 0) {
+                grid.innerHTML = `<p class="text-xs text-gray-500 col-span-2 text-center py-12">لا توجد مواد إخبارية مرفوعة حالياً في هذا القسم.</p>`;
+            }
+
+            filteredNews.forEach(news => {
+                const dateString = new Date(news.timestamp).toLocaleDateString('ar-EG');
+                grid.innerHTML += `
+                    <div class="glass-card rounded-xl overflow-hidden border border-gray-800/60 hover:border-red-600/40 transition flex flex-col cursor-pointer" onclick="readFullArticlePublic('${news.id}')">
+                        <div class="h-44 w-full overflow-hidden relative bg-gray-900">
+                            <img src="${news.image}" class="w-full h-full object-cover" alt="Image">
+                            <span class="absolute top-2.5 right-2.5 bg-black/80 text-white text-[10px] font-bold px-2 py-0.5 rounded">${news.category}</span>
+                        </div>
+                        <div class="p-4 flex-1 flex flex-col justify-between space-y-2">
+                            <h4 class="text-xs font-bold text-white line-clamp-2 hover:text-red-500 transition">${news.title}</h4>
+                            <div class="flex items-center justify-between text-[10px] text-gray-500 pt-2 border-t border-gray-900">
+                                <span><i class="far fa-calendar ml-1"></i> ${dateString}</span>
+                                <span><i class="far fa-eye ml-1"></i> ${news.views || 0} قراءة</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // ملء عمود الأكثر قراءة جانبياً
+            let popularNews = [...allAvailableNews].sort((a,b) => (b.views || 0) - (a.views || 0)).slice(0, 5);
+            popularNews.forEach((news, i) => {
+                sidePopular.innerHTML += `
+                    <div class="flex items-start gap-2.5 cursor-pointer group" onclick="readFullArticlePublic('${news.id}')">
+                        <span class="text-sm font-black text-gray-700">0${i+1}</span>
+                        <h5 class="text-xs font-bold text-gray-300 line-clamp-2 group-hover:text-white transition">${news.title}</h5>
+                    </div>
+                `;
+            });
+        }
+
+        function switchCategory(catName) {
+            selectedCategory = catName;
+            document.getElementById('current-view-title').innerText = catName === 'الرئيسية' ? 'آخر المستجدات والأخبار المحلية' : `أحدث تفطيات قسم: ${catName}`;
+            document.querySelectorAll('.public-view-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('view-home-group').classList.remove('hidden');
+            renderPublicNewsPortal();
+        }
+
+        function showPublicGallery() {
+            document.querySelectorAll('.public-view-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('view-gallery-stream').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function backToHomeGrid() {
+            document.querySelectorAll('.public-view-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('view-home-group').classList.remove('hidden');
+        }
+
+        // شاشة القراءة وتفسير الأزرار والشورت كودز [اضغط هنا]
+        function parseShortcodesInText(text) {
+            if(!text) return '';
+            let html = text;
+            html = html.replace(/\[اضغط هنا\]/g, `<button class="bg-blue-600 text-white font-bold px-3 py-1 rounded mx-1 text-[11px] shadow hover:bg-blue-700 transition">اضغط هنا لمشاهدة التفاصيل</button>`);
+            html = html.replace(/\[اقرأ إعلان\]/g, `<button class="bg-orange-600 text-white font-bold px-3 py-1 rounded mx-1 text-[11px] shadow hover:bg-orange-700 transition"><i class="fas fa-bullhorn ml-1"></i> اقرأ الإعلان الرسمي</button>`);
+            html = html.replace(/\[اقرأ المزيد\]/g, `<button class="bg-emerald-600 text-white font-bold px-3 py-1 rounded mx-1 text-[11px] shadow hover:bg-emerald-700 transition">اقرأ المزيد عن هذا الملف</button>`);
+            return html;
+        }
+
+        function readFullArticlePublic(id) {
+            const news = newsStore[id];
+            if(!news) return;
+
+            // تحديث عداد القراءات والمشاهدات فورياً يدوي
+            const currentViews = (news.views || 0) + 1;
+            db.ref('news/' + id + '/views').set(currentViews);
+
+            const dateFullStr = new Date(news.timestamp).toLocaleString('ar-EG');
+            const targetBox = document.getElementById('full-article-payload');
+            
+            targetBox.innerHTML = `
+                <div class="space-y-4">
+                    <span class="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded">${news.category}</span>
+                    <h1 class="text-xl md:text-3xl font-black text-white leading-tight">${news.title}</h1>
+                    
+                    <div class="flex flex-wrap items-center gap-4 text-[11px] text-gray-500 py-2 border-y border-gray-900">
+                        <span><i class="far fa-clock ml-1"></i> ${dateFullStr}</span>
+                        <span><i class="far fa-eye ml-1"></i> ${currentViews} مشاهدة وقراءة</span>
+                        <span><i class="fas fa-user-shield ml-1 text-red-500"></i> مراسل المحمودية المعتمد</span>
+                    </div>
+
+                    <div class="w-full rounded-xl overflow-hidden border border-gray-800 bg-gray-900">
+                        <img src="${news.image}" class="w-full max-h-[420px] object-cover mx-auto">
+                    </div>
+
+                    <div class="text-gray-200 text-xs md:text-sm leading-relaxed whitespace-pre-wrap py-2">
+                        ${parseShortcodesInText(news.content)}
+                    </div>
+
+                    <div class="pt-6 border-t border-gray-900 space-y-4">
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider"><i class="far fa-comments text-red-500 ml-1"></i> شارك برأيك في هذا الخبر</h3>
+                        <div class="flex gap-2">
+                            <input type="text" id="inp-pub-comment" placeholder="اكتب تعليقك هنا بكل أمان..." class="flex-1 bg-[#121824] border border-gray-800 text-xs text-white p-2.5 rounded focus:outline-none focus:border-red-500">
+                            <button onclick="addPublicComment('${news.id}')" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-5 rounded transition">إرسال</button>
+                        </div>
+                        <div id="public-comments-box" class="space-y-2 pt-2"></div>
+                    </div>
+                </div>
+            `;
+
+            document.querySelectorAll('.public-view-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('view-article-details').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            syncCommentsForArticle(news.id);
+        }
+
+        function syncCommentsForArticle(newsId) {
+            const box = document.getElementById('public-comments-box');
+            box.innerHTML = '';
+            db.ref('comments').orderByChild('newsId').equalTo(newsId).once('value', (snapshot) => {
+                const comments = snapshot.val() || {};
+                let hasComments = false;
+                for(let id in comments) {
+                    hasComments = true;
+                    box.innerHTML += `
+                        <div class="bg-[#121824]/50 p-2.5 rounded border border-gray-800 text-[11px] text-gray-300">
+                            <p>${comments[id].text}</p>
+                        </div>
+                    `;
+                }
+                if(!hasComments) box.innerHTML = `<p class="text-[11px] text-gray-600 italic">كن أول من يعلق على هذا الخبر.</p>`;
+            });
+        }
+
+        function renderAdminArticlesShelf() {
+            const shelf = document.getElementById('admin-articles-list');
+            shelf.innerHTML = '';
+            for(let id in newsStore) {
+                shelf.innerHTML += `
+                    <div class="p-2 bg-gray-900 rounded border border-gray-800 flex items-center justify-between text-xs gap-2">
+                        <span class="truncate text-gray-300 flex-1">${newsStore[id].title}</span>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button onclick="triggerEditArticle('${id}')" class="bg-yellow-600/20 text-yellow-500 border border-yellow-500/30 px-2 py-1 rounded text-[10px] hover:bg-yellow-600 hover:text-white transition"><i class="fas fa-edit"></i></button>
+                            <button onclick="triggerDeleteArticle('${id}')" class="bg-red-600/20 text-red-400 border border-red-500/30 px-2 py-1 rounded text-[10px] hover:bg-red-600 hover:text-white transition"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function renderVideosShelf(videos) {
+            const shelf = document.getElementById('admin-videos-shelf');
+            const pubGrid = document.getElementById('public-videos-grid');
+            shelf.innerHTML = ''; pubGrid.innerHTML = '';
+
+            for(let id in videos) {
+                shelf.innerHTML += `
+                    <div class="p-1.5 bg-gray-900 rounded border border-gray-800 flex items-center justify-between text-[11px]">
+                        <span class="truncate text-gray-300">${videos[id].title}</span>
+                        <button onclick="triggerDeleteVideo('${id}')" class="text-red-400 p-1"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                `;
+                pubGrid.innerHTML += `
+                    <div class="glass-card rounded-xl overflow-hidden border border-gray-800">
+                        <iframe class="w-full h-40 bg-black" src="${videos[id].url}" frameborder="0" allowfullscreen></iframe>
+                        <div class="p-2.5"><h4 class="text-xs font-bold text-gray-200 line-clamp-1">${videos[id].title}</h4></div>
+                    </div>
+                `;
+            }
+        }
+
+        function triggerPublicSearch() {
+            const q = document.getElementById('public-search').value.toLowerCase().trim();
+            const grid = document.getElementById('public-news-grid');
+            if(!q) { renderPublicNewsPortal(); return; }
+            
+            grid.innerHTML = '';
+            for(let id in newsStore) {
+                const news = newsStore[id];
+                if(news.title.toLowerCase().includes(q) || news.content.toLowerCase().includes(q)) {
+                    grid.innerHTML += `
+                        <div class="glass-card rounded-xl overflow-hidden border border-gray-800/60 transition cursor-pointer" onclick="readFullArticlePublic('${news.id}')">
+                            <div class="h-44 w-full overflow-hidden bg-gray-900"><img src="${news.image}" class="w-full h-full object-cover"></div>
+                            <div class="p-4"><h4 class="text-xs font-bold text-white line-clamp-2">${news.title}</h4></div>
+                        </div>
+                    `;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
